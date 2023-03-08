@@ -1,0 +1,9 @@
+{
+    "baseUrl": "https://api.notion.com/v1",
+    "createDatabase": "/databases",
+    "queryDatabase": "/databases/{}/query",
+    "getDatabase": "/databases/{}",
+    "createPage": "/pages",
+    "getPage": "/pages/{}",
+    "WhoAmi": "/users/me"
+}
