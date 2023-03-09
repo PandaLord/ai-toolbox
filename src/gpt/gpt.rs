@@ -1,49 +1,73 @@
-
-use super::{NotionRequest, NotionRequestError};
+use super::{GPTRequestBuilder, GPTRequestError};
 use anyhow::Result;
-use reqwest::{RequestBuilder};
+use reqwest::RequestBuilder;
 
-type AIResult = Result<RequestBuilder, NotionRequestError>;
+type ApiResult = Result<RequestBuilder, GPTRequestError>;
 
-pub async fn init_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
-    let notion_request = request.post("createDatabase".to_string(), db_id, payload);
-
-    notion_request
+pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
+    builder.get("listModels".to_string())
 }
+// pub async fn init_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
+//     let notion_request = request.post("createDatabase".to_string(), db_id, payload);
 
-pub async fn init_page(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
-    let notion_request = request.post("createPage".to_string(), db_id, payload);
+//     notion_request
+// }
 
-    notion_request
+// pub async fn init_page(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
+//     let notion_request = request.post("createPage".to_string(), db_id, payload);
+
+//     notion_request
+// }
+
+// pub async fn query_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
+//     let notion_request = request.post("queryDatabase".to_string(), db_id, payload);
+
+//     notion_request
+// }
+
+// pub fn notion_api(request: &NotionRequest, db_id: String) -> ApiResult {
+//     let notion_request = request.get("getDatabase".to_string(), db_id);
+
+//     notion_request
+// }
+
+// pub async fn get_user_info(request: &NotionRequest) -> ApiResult {
+//     let notion_request = request.get("WhoAmi".to_string(), "".to_owned());
+
+//     notion_request
+// }
+
+#[cfg(test)]
+mod gpt_test {
+    use super::*;
+    use crate::notion::notion_payload::{NotionPayload, ParentType};
+    use crate::notion::query::QueryFilter;
+    use crate::utils::helper::get_and_print_reponse;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_gpt_get_model() -> Result<()> {
+        let request: GPTRequestBuilder = GPTRequestBuilder::default();
+        let builder = get_model(&request)?;
+
+        if let Ok(status) = get_and_print_reponse(builder).await {
+            assert_eq!(status, 200);
+        }
+        // let response = builder.send().await?;
+        // let status = response.status();
+        // let body = &response.text().await?;
+        // let response: Value = serde_json::from_str(body)?;
+        // println!("res body: {}", body);
+
+        Ok(())
+    }
 }
-
-pub async fn query_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
-    let notion_request = request.post("queryDatabase".to_string(), db_id, payload);
-
-    notion_request
-}
-
-pub fn notion_api(request: &NotionRequest, db_id: String) -> ApiResult {
-    let notion_request = request.get("getDatabase".to_string(), db_id);
-
-    notion_request
-}
-
-pub async fn get_user_info(request: &NotionRequest) -> ApiResult {
-    let notion_request = request.get("WhoAmi".to_string(), "".to_owned());
-
-    notion_request
-}
-
-// #[cfg(test)]
 // mod notion_test {
 //     use serde_json::{json};
 //     use crate::utils::helper::get_and_print_reponse;
 //     use crate::notion::notion_payload::{NotionPayload, ParentType};
 //     use crate::notion::query::QueryFilter;
 //     use super::*;
-
-    
 
 //     #[tokio::test]
 //     async fn test_notion_api() -> Result<()> {

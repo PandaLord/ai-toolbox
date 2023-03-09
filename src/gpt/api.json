@@ -1,9 +1,12 @@
 {
-    "baseUrl": "https://api.notion.com/v1",
-    "createDatabase": "/databases",
-    "queryDatabase": "/databases/{}/query",
-    "getDatabase": "/databases/{}",
-    "createPage": "/pages",
-    "getPage": "/pages/{}",
-    "WhoAmi": "/users/me"
+    "baseUrl": "https://api.openai.com/v1/",
+    "createChat": "/chat/completions",
+    "createEdit": "/edits",
+    "createImage": "/images/generations",
+    "createImageEdit": "/images/edits",
+    "createImageVariation": "/images/variations",
+    "createEmbedding": "/embeddings",
+    "createTranscription": "/audio/transcriptions",
+    "createTranslation": "/audio/translations",
+    "listModels": "/models"
 }

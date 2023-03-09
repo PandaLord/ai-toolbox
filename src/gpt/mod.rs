@@ -3,6 +3,9 @@
 // mod notion;
 // mod notion_payload;
 // pub mod query;
+mod gpt;
+
+pub use gpt::*;
 
 use anyhow::Result;
 use dotenv::dotenv;
@@ -17,19 +20,27 @@ use thiserror::Error;
 // use serde_json::{Result, Value};
 // use crate::format_url;
 
-const API_PATH: &'static str = "./src/gpt/api.json";
-pub struct GPTRequest {
+const API_PATH: &'static str = "./src/gpt/api.json";\
+
+// define common trait for create requests
+
+
+pub struct GPTRequestBuilder {
     token: String,
     api_dict: HashMap<String, String>,
 }
 
 #[derive(Error, Debug)]
 pub enum GPTRequestError {
+    #[error("get request build error")]
+    GetRequestError(String),
+    #[error("post request build error")]
+    PostRequestError(String),
     #[error("unknown request error")]
     Unknown,
 }
 
-impl Default for GPTRequest {
+impl Default for GPTRequestBuilder {
     fn default() -> Self {
         dotenv().ok();
         let token = env::var("GPT_TOKEN").unwrap_or("no GPT token".to_string());
@@ -45,7 +56,7 @@ impl Default for GPTRequest {
     }
 }
 
-impl GPTRequest {
+impl GPTRequestBuilder {
     pub fn new() -> Self {
         Default::default()
     }
@@ -61,32 +72,29 @@ impl GPTRequest {
         }
     }
 
-    // fn basic_notion_header() -> HeaderMap {
-    //     let mut header_map = HeaderMap::new();
-    //     header_map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-    //     header_map.insert("Notion-Version", "2022-06-28".parse().unwrap());
-
-    //     header_map
-    // }
+    fn basic_request_header() -> HeaderMap {
+        let mut header_map = HeaderMap::new();
+        header_map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+        header_map
+    }
 
     pub fn get(
         &self,
         api_name: String,
         params: String,
     ) -> Result<RequestBuilder, GPTRequestError> {
-        todo!()
-        // let url = self.retrieve_url(&api_name);
-        // let headers = GPTRequest::basic_notion_header();
-        // if let Some(url) = url {
-        //     let full_url = format_url!(url, params);
-        //     let request_builder = Client::new()
-        //         .get(full_url)
-        //         .bearer_auth(&self.token)
-        //         .headers(headers);
-        //     Ok(request_builder)
-        // } else {
-        //     Err(GPTRequestError::Unknown("test".to_string()))
-        // }
+        let url = self.retrieve_url(&api_name);
+        let headers = GPTRequestBuilder::basic_request_header();
+        if let Some(url) = url {
+            // let full_url = format_url!(url, params);
+            let request_builder = Client::new()
+                .get(url)
+                .bearer_auth(&self.token)
+                .headers(headers);
+            Ok(request_builder)
+        } else {
+            Err(GPTRequestError::GetRequestError("test".to_string()))
+        }
     }
 
     pub fn post(
