@@ -1,11 +1,13 @@
-use super::{GPTRequestBuilder, GPTRequestError};
+use super::error::Error;
+use super::GPTRequestBuilder;
 use anyhow::Result;
 use reqwest::RequestBuilder;
 
-type ApiResult = Result<RequestBuilder, GPTRequestError>;
+type ApiResult = Result<RequestBuilder, Error>;
 
 pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
-    builder.get("listModels".to_string())
+    todo!()
+    // builder.get("listModels".to_string(), "".to_string())
 }
 // pub async fn init_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
 //     let notion_request = request.post("createDatabase".to_string(), db_id, payload);
@@ -40,15 +42,15 @@ pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
 #[cfg(test)]
 mod gpt_test {
     use super::*;
-    use crate::notion::notion_payload::{NotionPayload, ParentType};
-    use crate::notion::query::QueryFilter;
+    // use crate::notion::notion_payload::{NotionPayload, ParentType};
+    // use crate::notion::query::QueryFilter;
     use crate::utils::helper::get_and_print_reponse;
     use serde_json::json;
 
     #[tokio::test]
     async fn test_gpt_get_model() -> Result<()> {
         let request: GPTRequestBuilder = GPTRequestBuilder::default();
-        let builder = get_model(&request)?;
+        let builder = get_model(&request).await?;
 
         if let Ok(status) = get_and_print_reponse(builder).await {
             assert_eq!(status, 200);
