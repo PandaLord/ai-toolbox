@@ -1,11 +1,17 @@
-
-
 // mod notion;
 // mod notion_payload;
 // pub mod query;
 mod gpt;
+mod chat;
 
-pub use gpt::*;
+
+
+
+
+
+use gpt::*;
+use self::chat::ChatFormat;
+
 
 use anyhow::Result;
 use dotenv::dotenv;
@@ -14,20 +20,31 @@ use reqwest::{
     header::{HeaderMap, CONTENT_TYPE},
     Client, RequestBuilder,
 };
+use serde::{Serialize, Deserialize};
 
 use std::{collections::HashMap, env, fs};
 use thiserror::Error;
+
+use crate::utils::format_url;
+
+
+
 // use serde_json::{Result, Value};
 // use crate::format_url;
 
-const API_PATH: &'static str = "./src/gpt/api.json";\
+const API_PATH: &'static str = "./src/gpt/api.json";
 
 // define common trait for create requests
+
 
 
 pub struct GPTRequestBuilder {
     token: String,
     api_dict: HashMap<String, String>,
+}
+
+pub trait GPTPayload {
+    fn to_json(&self) -> Result<String, anyhow::Error>;
 }
 
 #[derive(Error, Debug)]
@@ -78,17 +95,15 @@ impl GPTRequestBuilder {
         header_map
     }
 
-    pub fn get(
-        &self,
-        api_name: String,
-        params: String,
-    ) -> Result<RequestBuilder, GPTRequestError> {
+    pub fn get(&self, api_name: String, params: String) -> Result<RequestBuilder, GPTRequestError> {
         let url = self.retrieve_url(&api_name);
         let headers = GPTRequestBuilder::basic_request_header();
         if let Some(url) = url {
-            // let full_url = format_url!(url, params);
+            // TODO: remove format url
+            let full_url = format_url(&url, params);
+            println!("{}", full_url);
             let request_builder = Client::new()
-                .get(url)
+                .get(full_url)
                 .bearer_auth(&self.token)
                 .headers(headers);
             Ok(request_builder)
@@ -103,19 +118,19 @@ impl GPTRequestBuilder {
         params: String,
         payload: String,
     ) -> Result<RequestBuilder, GPTRequestError> {
-        todo!();
-        // let url = self.retrieve_url(&api_name);
-        // let headers = GPTRequest::basic_notion_header();
-        // if let Some(url) = url {
-        //     let full_url = format_url!(url, params);
-        //     let request = Client::new()
-        //         .post(full_url)
-        //         .bearer_auth(&self.token)
-        //         .headers(headers)
-        //         .body(payload);
-        //     Ok(request)
-        // } else {
-        //     Err(GPTRequestError::Unknown("test".to_string()))
-        // }
+        let url = self.retrieve_url(&api_name);
+        let headers = GPTRequestBuilder::basic_request_header();
+        if let Some(url) = url {
+            // TODO: remove format url
+            let full_url = format_url(&url, params);
+            let request = Client::new()
+                .post(full_url)
+                .bearer_auth(&self.token)
+                .headers(headers)
+                .body(payload);
+            Ok(request)
+        } else {
+            Err(GPTRequestError::PostRequestError("test".to_string()))
+        }
     }
 }

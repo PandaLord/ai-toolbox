@@ -1,5 +1,6 @@
 mod gpt;
 mod utils;
+use clap::{Args, Parser, Subcommand};
 pub use gpt::*;
 
 #[derive(Parser)]
@@ -26,7 +27,7 @@ enum Commands {
     // #[command(arg_required_else_help = true)]
     // User(User),
     #[command(arg_required_else_help = true)]
-    GPT(Notion),
+    GPT(GPT),
     // #[command(arg_required_else_help = true)]
     // Timer(Timer),
 }
@@ -46,11 +47,11 @@ enum Commands {
 #[command(args_conflicts_with_subcommands = true)]
 struct GPT {
     #[command(subcommand)]
-    command: Option<NotionCommands>,
+    command: Option<GPTCommands>,
 }
 
 #[derive(Debug, Subcommand)]
-enum NotionCommands {
+enum GPTCommands {
     CreateChat,
     CreateEdit,
     CreateImage,
