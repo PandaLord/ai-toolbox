@@ -11,6 +11,7 @@ COPY . .
 
 # install relevant toolchains
 RUN apt-get update && apt-get upgrade
+RUN apt install build-essential
 RUN apt install pkg-config -y --force-yes
 RUN apt-get install vim -y --force-yes
 RUN apt-get install git -y --force-yes
