@@ -1,12 +1,12 @@
-// #[macro_use]
-// pub mod macros {
-//     #[macro_export]
-//     macro_rules! format_url {
-//         ($r: ident, $e:ident) => {
-//             $r.replace("{}", $e.as_str())
-//         };
-//     }
-// }
+#[macro_use]
+pub mod macros {
+    #[macro_export]
+    macro_rules! format_url {
+        ($r: ident, $e:ident) => {
+            $r.replace("{}", $e.as_str())
+        };
+    }
+}
 
 pub fn format_url(origin: &str, params: impl AsRef<str>) -> String {
     origin.replace("{}", params.as_ref())

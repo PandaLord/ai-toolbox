@@ -1,17 +1,14 @@
-use super::{GPTRequestBuilder, GPTRequestError};
+use super::error::Error;
+use super::GPTRequestBuilder;
 use anyhow::Result;
 use reqwest::RequestBuilder;
 
-type ApiResult = Result<RequestBuilder, GPTRequestError>;
+type ApiResult = Result<RequestBuilder, Error>;
 
 pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
-    builder.get("listModels".to_string(), String::new())
+    todo!()
+    // builder.get("listModels".to_string(), "".to_string())
 }
-
-pub async fn create_chat(builder: &GPTRequestBuilder, params: String, payload: String) -> ApiResult {
-    builder.post("createChat".to_string(), params, payload)
-}
-
 // pub async fn init_db(request: &NotionRequest, db_id: String, payload: String) -> ApiResult {
 //     let notion_request = request.post("createDatabase".to_string(), db_id, payload);
 
@@ -54,41 +51,16 @@ mod gpt_test {
     async fn test_gpt_get_model() -> Result<()> {
         let request: GPTRequestBuilder = GPTRequestBuilder::default();
         let builder = get_model(&request).await?;
-        
-        // if let Ok(status) = get_and_print_reponse(builder).await {
-        //     assert_eq!(status, 200);
-        // }
-        let response = builder.send().await?;
-        let status = response.status();
-        let body = &response.text().await?;
-        // let response: Value = serde_json::from_str(body)?;
-        println!("res body: {}", body);
 
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn init_page_test() -> Result<()> {
-        let request: GPTRequestBuilder = GPTRequestBuilder::default();
-        let parent_id = "044ce74a839e4c7e8beeea8f49ec2fae".to_string();
-        let schema = json!({
-            "title": [
-                {
-                    "text": {
-                        "content": "Test api Page"
-                    }
-                }
-            ]
-        });
-        let payload = NotionPayload::new()
-        .parent(ParentType::Page, parent_id.as_str())
-        .icon("🌹".to_string())
-        .cover("https://cdna.artstation.com/p/assets/images/images/010/039/240/large/liu-x-160.jpg?1522232709")
-        .properties(schema);
-        let builder = create_chat(&request, "".to_string(), payload.to_json().unwrap()).await?;
         if let Ok(status) = get_and_print_reponse(builder).await {
             assert_eq!(status, 200);
         }
+        // let response = builder.send().await?;
+        // let status = response.status();
+        // let body = &response.text().await?;
+        // let response: Value = serde_json::from_str(body)?;
+        // println!("res body: {}", body);
+
         Ok(())
     }
 }
