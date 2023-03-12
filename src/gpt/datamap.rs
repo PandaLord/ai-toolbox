@@ -101,3 +101,23 @@ pub struct ChatResponse {
     /// usage information for the request.
     pub usage: Usage,
 }
+
+/*
+    Model Relevant Data Structure
+ */
+
+// Model Response
+#[derive(Debug, Deserialize)]
+pub struct ModelResponse {
+    pub data: Vec<ModelData>,
+    pub object: String,
+}
+
+// Model data object
+#[derive(Debug, Deserialize)]
+pub struct ModelData {
+    pub id: String,
+    pub object: String,
+    pub owned_by: String,
+    pub permission: Vec<String>
+}

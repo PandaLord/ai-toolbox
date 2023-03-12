@@ -42,6 +42,7 @@ pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
 #[cfg(test)]
 mod gpt_test {
     use super::*;
+    use anyhow::Result;
     // use crate::notion::notion_payload::{NotionPayload, ParentType};
     // use crate::notion::query::QueryFilter;
     use crate::utils::helper::get_and_print_reponse;
