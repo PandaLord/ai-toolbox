@@ -3,11 +3,11 @@
 // mod notion;
 // mod notion_payload;
 // pub mod query;
-mod gpt;
-mod datamap;
-mod error;
-mod api;
-mod token;
+pub mod gpt;
+pub mod datamap;
+pub mod error;
+pub mod api;
+pub mod token;
 
 
 pub use gpt::*;
