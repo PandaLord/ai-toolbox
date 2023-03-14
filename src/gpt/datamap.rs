@@ -12,7 +12,7 @@ pub enum Model {
     Gpt35Turbo0301,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Choice {
     /// Index of the message
     pub index: u32,
@@ -24,7 +24,7 @@ pub struct Choice {
     pub finish_reason: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
     /// role for the message
     pub role: String,
@@ -73,7 +73,7 @@ pub struct ChatPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
 }
-#[derive(serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 /// usage information for the OpenAI API.
 pub struct Usage {
     /// how many tokens were used for the prompt.
@@ -86,7 +86,7 @@ pub struct Usage {
     pub total_tokens: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ChatResponse {
     /// ID of the request.
     pub id: String,
@@ -103,8 +103,8 @@ pub struct ChatResponse {
 }
 
 /*
-    Model Relevant Data Structure
- */
+   Model Relevant Data Structure
+*/
 
 // Model Response
 #[derive(Debug, Deserialize)]
@@ -119,5 +119,15 @@ pub struct ModelData {
     pub id: String,
     pub object: String,
     pub owned_by: String,
-    pub permission: Vec<String>
+    pub permission: Vec<PermissionData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PermissionData {
+    pub allow_create_engine: bool,
+    pub allow_fine_tuning: bool,
+    pub allow_logprobs: bool,
+    pub allow_sampling: bool,
+    pub allow_search_indices: bool,
+    pub allow_view: bool,
 }

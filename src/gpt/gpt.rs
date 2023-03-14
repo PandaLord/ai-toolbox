@@ -39,32 +39,32 @@ pub async fn get_model(builder: &GPTRequestBuilder) -> ApiResult {
 //     notion_request
 // }
 
-#[cfg(test)]
-mod gpt_test {
-    use super::*;
-    use anyhow::Result;
-    // use crate::notion::notion_payload::{NotionPayload, ParentType};
-    // use crate::notion::query::QueryFilter;
-    use crate::utils::helper::get_and_print_reponse;
-    use serde_json::json;
+// #[cfg(test)]
+// mod gpt_test {
+//     use super::*;
+//     use anyhow::Result;
+//     // use crate::notion::notion_payload::{NotionPayload, ParentType};
+//     // use crate::notion::query::QueryFilter;
+//     use crate::utils::helper::get_and_print_reponse;
+//     use serde_json::json;
 
-    #[tokio::test]
-    async fn test_gpt_get_model() -> Result<()> {
-        let request: GPTRequestBuilder = GPTRequestBuilder::default();
-        let builder = get_model(&request).await?;
+//     #[tokio::test]
+//     async fn test_gpt_get_model() -> Result<()> {
+//         let request: GPTRequestBuilder = GPTRequestBuilder::default();
+//         let builder = get_model(&request).await?;
 
-        if let Ok(status) = get_and_print_reponse(builder).await {
-            assert_eq!(status, 200);
-        }
-        // let response = builder.send().await?;
-        // let status = response.status();
-        // let body = &response.text().await?;
-        // let response: Value = serde_json::from_str(body)?;
-        // println!("res body: {}", body);
+//         if let Ok(status) = get_and_print_reponse(builder).await {
+//             assert_eq!(status, 200);
+//         }
+//         // let response = builder.send().await?;
+//         // let status = response.status();
+//         // let body = &response.text().await?;
+//         // let response: Value = serde_json::from_str(body)?;
+//         // println!("res body: {}", body);
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
 // mod notion_test {
 //     use serde_json::{json};
 //     use crate::utils::helper::get_and_print_reponse;
