@@ -39,7 +39,7 @@ impl Display for GPTError {
             Self::ChatError(e) => {
                 write!(f, "Chat API Error, {}: {}", e.error_type, e.message)
             },
-            Self::EditError(e) => {
+            Self::EditError(_) => {
                 write!(f, "OpenAI Edit API Error")
             },
         }

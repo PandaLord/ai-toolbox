@@ -1,4 +1,3 @@
-mod gpt;
-mod utils;
-pub use gpt::*;
-
+pub mod openai;
+pub mod utils;
+pub use openai::*;
