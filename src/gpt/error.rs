@@ -21,6 +21,7 @@ pub enum Error {
 #[derive(Error, Debug, Serialize, Deserialize)]
 pub struct GPTErrorResponse {
     pub error: GPTError,
+
 }
 impl Display for GPTErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -31,6 +32,7 @@ impl Display for GPTErrorResponse {
 pub enum GPTError {
     ChatError(ChatError),
     EditError(EditError),
+    // message(msg),
 }
 
 impl Display for GPTError {
