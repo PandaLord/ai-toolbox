@@ -70,3 +70,23 @@ pub struct EditError {}
 //     #[error("unknown request error")]
 //     Unknown,
 // }
+// #[derive(Error, Debug)]
+// #[error("GPT请求失败: {0}")]
+// pub struct GPTRequestError(String);
+
+#[derive(Debug)]
+pub enum CustomError {
+    SledError(sled::Error),
+    GPTApiError(Error),
+}
+impl From<sled::Error> for CustomError {
+    fn from(error: sled::Error) -> Self {
+        CustomError::SledError(error)
+    }
+}
+
+impl From<Error> for CustomError {
+    fn from(error: Error) -> Self {
+        CustomError::GPTApiError(error)
+    }
+}

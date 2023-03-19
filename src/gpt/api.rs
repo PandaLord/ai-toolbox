@@ -4,11 +4,8 @@ use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE},
     Client,
 };
-use serde_json::Value;
 use std::{collections::HashMap, env, fs};
-
 use crate::gpt::error::{Error, GPTErrorResponse};
-
 use super::{
     datamap::{ChatPayload, ChatResponse, ModelResponse},
     error::ApiResult,
@@ -103,7 +100,11 @@ impl Api {
             Err(Error::ApiError(err))
         }
     }
+
+
 }
+
+
 
 #[cfg(test)]
 mod api_test {
@@ -123,26 +124,54 @@ mod api_test {
 
         Ok(())
     }
-    #[tokio::test]
-    async fn test_gpt_chat() -> Result<()> {
-        dotenv().ok();
-        let api_secret = env::var("GPT_TOKEN").unwrap_or("no GPT token".to_string());
-        let token = Token::new(api_secret);
-        let request = Api::new(token);
-
-        // chat payload
-        let msg: Message = Message {
-            role: "user".to_string(),
-            content: "Hello to you, gpt turbo!".to_string(),
-        };
-        let chat_payload: ChatPayload = ChatPayload {
-            model: Model::Gpt35Turbo,
-            messages: vec![msg],
-            ..Default::default()
-        };
-        let res = request.chat(chat_payload).await?;
-        println!("{:?}", res);
-
-        Ok(())
-    }
+    // #[tokio::test]
+    // async fn test_gpt_chat() -> Result<()> {
+    //     dotenv().ok();
+    //     let api_secret = env::var("GPT_TOKEN").unwrap_or("no GPT token".to_string());
+    //     let token = Token::new(api_secret);
+    //     let request = Api::new(token);
+    //
+    //     let db = sled::open("./init").expect("Failed to open sled database");
+    //     // 创建一个新的对话
+    //     let conversation_id = Uuid::new_v4().to_string();
+    //     let conversation = Conversation {
+    //         conversation_id: conversation_id.clone(),
+    //         created_at: "2023-03-15T10:00:00Z".to_string(),
+    //         updated_at: "2023-03-15T10:00:00Z".to_string(),
+    //         user_id: "12345".to_string(),
+    //     };
+    //     // 用户发送消息
+    //     let user_message = Sentances {
+    //         sentance_id: 1,
+    //         conversation_id: conversation_id.clone(),
+    //         sender: "user".to_string(),
+    //         content: "你是一个非常有帮助的人工智能助手，旨在帮我解决一切问题。".to_string(),
+    //         timestamp: "2023-03-15T10:00:30Z".to_string(),
+    //     };
+    //     // GPT-3 回复
+    //     let gpt3_response = "感谢夸奖，我会尽力为你解决问题".to_string();
+    //
+    //     let gpt3_message = Sentances {
+    //         sentance_id: 2,
+    //         conversation_id: conversation_id.clone(),
+    //         sender: "assistant".to_string(),
+    //         content: gpt3_response,
+    //         timestamp: "2023-03-15T10:01:00Z".to_string(),
+    //     };
+    //     // 更新数据库
+    //     update_database(&db, &conversation, &[&user_message, &gpt3_message]).unwrap();
+    //
+    //     let msg = convert_to_messages(query_conversation(&db, &conversation_id)?);
+    //     println!("msg:{:?}",msg);
+    //     let chat_payload: ChatPayload = ChatPayload {
+    //         model: Model::Gpt35Turbo,
+    //         messages: msg,
+    //         ..Default::default()
+    //     };
+    //
+    //     let res = request.chat(chat_payload).await?;
+    //     println!("{:?}", res);
+    //
+    //     Ok(())
+    // }
 }

@@ -33,6 +33,23 @@ pub struct Message {
     pub content: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Conversation {
+    pub conversation_id: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub user_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Sentances {
+    pub sentance_id: u64,
+    pub conversation_id: String,
+    pub sender: String,
+    pub content: String,
+    pub timestamp: String,
+}
+
 #[derive(Serialize, Default)]
 pub struct ChatPayload {
     /// ID of the model to use. Currently, only `gpt-3.5-turbo` and `gpt-3.5-turbo-0301` are supported.
