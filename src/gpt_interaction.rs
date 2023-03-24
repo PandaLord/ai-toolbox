@@ -84,7 +84,7 @@ pub async fn interact_with_gpt(request: &Api, conversation_id: &str, db: &Db) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gpt::*;
+    use crate::openai::*;
     use std::env;
 
     #[tokio::test]

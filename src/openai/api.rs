@@ -7,7 +7,7 @@ use reqwest::{
 use serde_json::Value;
 use std::{collections::HashMap, env, fs};
 
-use crate::gpt::error::{Error, GPTErrorResponse};
+use crate::openai::error::{Error, GPTErrorResponse};
 
 use super::{
     datamap::{ChatPayload, ChatResponse, ModelResponse},
@@ -24,7 +24,7 @@ pub struct Api {
 
 impl Api {
     const BASE_URL: &'static str = "https://api.openai.com/v1";
-    const API_PATH: &'static str = "./src/gpt/api.json";
+    const API_PATH: &'static str = "./src/openai/api.json";
 
     pub fn new(key: Token) -> Api {
         let mut header_map = HeaderMap::new();
