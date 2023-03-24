@@ -94,9 +94,9 @@ mod tests {
         let token = Token::new(api_secret);
         let request = Api::new(token);
 
-        let db = sled::open("./init").expect("Failed to open sled database");
+        let db = sled::open("init").expect("Failed to open sled database");
 
-        let conversation_id = Uuid::new_v4().to_string();
+        let conversation_id = "1".to_string();
         let conversation = Conversation {
             conversation_id: conversation_id.clone(),
             created_at: "2023-03-15T10:00:00Z".to_string(),
@@ -120,8 +120,8 @@ mod tests {
             content: "Tell me a joke.".to_string(),
             timestamp: "2023-03-15T10:01:30Z".to_string(),
         };
-
-        update_database(&db, &conversation, &[&user_message2])?;
+        update_database(&db, &conversation, &[&user_message,&user_message2])?;
+        // update_database(&db, &conversation, &[&user_message2])?;
 
         // Interact with GPT-3 for the first user message
         interact_with_gpt(&request, &conversation_id, &db).await?;
@@ -138,4 +138,15 @@ mod tests {
 
         Ok(())
     }
+}
+
+#[test]
+fn test_is_in_db(){
+    let db = sled::open("./init").expect("Failed to open sled database");
+
+    let messages = query_conversation(&db, "1").unwrap();
+
+    // Convert Sentances to Message for GPT-3 interaction
+    let gpt_messages = convert_to_messages(messages);
+    println!("{:?}", gpt_messages);
 }

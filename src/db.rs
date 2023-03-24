@@ -7,7 +7,7 @@ use anyhow::{anyhow};
 use bincode;
 // 初始化数据库
 pub fn initialize_database() -> Db {
-    let db = sled::open("sled_db").expect("Failed to open sled database");
+    let db = sled::open("init").expect("Failed to open sled database");
     db
 }
 pub fn init() {
@@ -107,7 +107,7 @@ fn test() -> Result<()> {
     let db = initialize_database();
 
     // 创建一个新的对话
-    let conversation_id = Uuid::new_v4().to_string();
+    let conversation_id = "1".to_string();
     let conversation = Conversation {
         conversation_id: conversation_id.clone(),
         created_at: "2023-03-15T10:00:00Z".to_string(),
@@ -151,5 +151,12 @@ fn test() -> Result<()> {
 }
 #[test]
 fn test2(){
+    let db = sled::open("init").expect("Failed to open sled database");
+    let messages = query_conversation(&db, "1").unwrap();
 
+    // 显示对话内容
+    println!("对话内容：");
+    for message in messages {
+        println!("[{}][{}]: {}", message.timestamp, message.sender, message.content);
+    }
 }
