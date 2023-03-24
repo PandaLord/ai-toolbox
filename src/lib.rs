@@ -1,7 +1,3 @@
-mod gpt;
-mod utils;
-mod db;
-mod gpt_interaction;
-
-pub use gpt::*;
-
+pub mod openai;
+pub mod utils;
+pub use openai::*;

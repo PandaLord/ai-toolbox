@@ -5,7 +5,7 @@ use anyhow::Result;
 use dotenv::dotenv;
 
 
-use ai_toolbox::{api::{self, Api}, token::Token, datamap::{Message, ChatPayload, Model}};
+use ai_toolbox::{openai::api::Api, token::Token, datamap::{Message, ChatPayload, Model}};
 #[derive(Parser)]
 #[command(name = "ai")]
 #[command(author, version="1.0.0", about, long_about = None)]
