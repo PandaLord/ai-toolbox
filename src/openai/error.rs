@@ -42,6 +42,9 @@ impl Display for GPTError {
             Self::EditError(_) => {
                 write!(f, "OpenAI Edit API Error")
             },
+            (other) => {
+                write!(f, "Unknown Error: {:?}", other)
+            }
         }
     }
 }
