@@ -5,7 +5,10 @@ use reqwest::{
 };
 use std::{collections::HashMap, fs};
 
-use crate::openai::error::{Error, GPTErrorResponse};
+use crate::{
+    datamap::{EmbeddingPayload, EmbeddingResponse},
+    openai::error::{Error, GPTErrorResponse},
+};
 
 use super::{
     datamap::{ChatPayload, ChatResponse, ModelResponse},
@@ -22,14 +25,22 @@ pub struct Api {
 
 impl Api {
     const BASE_URL: &'static str = "https://api.openai.com/v1";
-    const API_PATH: &'static str = "./src/openai/api.json";
 
     pub fn new(key: Token) -> Api {
         let mut header_map = HeaderMap::new();
-        let json_data: String =
-            fs::read_to_string(Self::API_PATH).expect("unable to read Api Json");
+        let api_json = r#"{
+            "createChat": "/chat/completions",
+            "createEdit": "/edits",
+            "createImage": "/images/generations",
+            "createImageEdit": "/images/edits",
+            "createImageVariation": "/images/variations",
+            "createEmbedding": "/embeddings",
+            "createTranscription": "/audio/transcriptions",
+            "createTranslation": "/audio/translations",
+            "listModels": "/models"
+        }"#;
         let api_dict: HashMap<String, String> =
-            serde_json::from_str(&json_data).expect("unable to transfer to hashmap");
+            serde_json::from_str(api_json).expect("unable to transfer to hashmap");
 
         // header_map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
         header_map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
@@ -47,6 +58,33 @@ impl Api {
     pub fn organization_id(mut self, organization_id: String) -> Self {
         self.organization_id = Some(organization_id);
         self
+    }
+
+    pub async fn get_model(&self) -> ApiResult<ModelResponse> {
+        // pub async fn get_model(&self) {
+        const CHAT_API_KEY: &str = "listModels";
+        let url = format!(
+            "{}{}",
+            Self::BASE_URL,
+            self.api_dict.get(CHAT_API_KEY).unwrap()
+        );
+        let res = self.client.get(&url);
+        let res = if let Some(organization_id) = &self.organization_id {
+            res.header("OpenAI-Organization", organization_id)
+        } else {
+            res
+        };
+
+        let res = res.send().await?;
+
+        // if status is ok, return as Response json, otherwise return as ApiError
+        if res.status().is_success() {
+            let res = res.json::<ModelResponse>().await?;
+            Ok(res)
+        } else {
+            let err = res.json::<GPTErrorResponse>().await?;
+            Err(Error::ApiError(err))
+        }
     }
 
     pub async fn chat(&self, payload: ChatPayload) -> ApiResult<ChatResponse> {
@@ -75,15 +113,15 @@ impl Api {
         }
     }
 
-    pub async fn get_model(&self) -> ApiResult<ModelResponse> {
-        // pub async fn get_model(&self) {
-        const CHAT_API_KEY: &str = "listModels";
+    pub async fn embedding(&self, payload: &EmbeddingPayload) -> ApiResult<EmbeddingResponse> {
+        const CHAT_API_KEY: &str = "createEmbedding";
         let url = format!(
             "{}{}",
             Self::BASE_URL,
             self.api_dict.get(CHAT_API_KEY).unwrap()
         );
-        let res = self.client.get(&url);
+        let res = self.client.post(&url).json(payload);
+        // println!("test: {:?}, {:?}", res, serde_json::to_string(payload));
         let res = if let Some(organization_id) = &self.organization_id {
             res.header("OpenAI-Organization", organization_id)
         } else {
@@ -92,13 +130,14 @@ impl Api {
 
         let res = res.send().await?;
 
-        // if status is ok, return as Response json, otherwise return as ApiError
+        // if status is ok, returns Response json, otherwise return as ApiError
         if res.status().is_success() {
-            let res = res.json::<ModelResponse>().await?;
+            let res = res.json::<EmbeddingResponse>().await?;
             Ok(res)
         } else {
-            let err = res.json::<GPTErrorResponse>().await?;
-            Err(Error::ApiError(err))
+            // println!("err: {:?}", res);
+            let err = res.json::<crate::error::GPTError>().await?;
+            Err(Error::ApiError(GPTErrorResponse { error: err }))
         }
     }
 }
@@ -141,6 +180,31 @@ mod api_test {
         };
         let res = request.chat(chat_payload).await?;
         println!("{:?}", res);
+
+        Ok(())
+    }
+
+    // unit test for function embedding in Api struct
+    #[tokio::test]
+    async fn test_embedding() -> Result<()> {
+        dotenv().ok();
+        // Initialize an instance of the ChatClient
+        let api_secret = env::var("GPT_TOKEN").unwrap_or("no GPT token".to_string());
+        let token = Token::new(api_secret);
+        let request = Api::new(token);
+        // the embedding vectors always has 1536 length.
+
+        // Create an EmbeddingPayload object
+        let payload = EmbeddingPayload {
+            model: Model::Ada002,
+            input: "This is an embedding test".to_string(),
+            ..Default::default()
+        };
+        let res = request.embedding(&payload).await?;
+        // Call the embedding function
+
+        // Check if the response has been successful
+        println!("test1: {:?}", res.data[0].embedding.len());
 
         Ok(())
     }

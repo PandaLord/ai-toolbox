@@ -3,3 +3,5 @@ Cargo.lock
 .env
 /.devcontainer
 /init
+/assets
+test.json

@@ -1,9 +1,6 @@
-
-
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use std::fmt::Display;
-
+use thiserror::Error;
 
 /// 要么是服务器问题,要么是请求有问题,Error 处理这两种情况
 pub type ApiResult<T> = Result<T, Error>;
@@ -30,7 +27,8 @@ impl Display for GPTErrorResponse {
 #[derive(Error, Debug, Serialize, Deserialize)]
 pub enum GPTError {
     ChatError(ChatError),
-    EditError(EditError),
+    EmbeddingError(EmbeddingError),
+    UnknownError(String),
 }
 
 impl Display for GPTError {
@@ -38,11 +36,11 @@ impl Display for GPTError {
         match self {
             Self::ChatError(e) => {
                 write!(f, "Chat API Error, {}: {}", e.error_type, e.message)
-            },
-            Self::EditError(_) => {
-                write!(f, "OpenAI Edit API Error")
-            },
-            (other) => {
+            }
+            Self::EmbeddingError(_) => {
+                write!(f, "OpenAI EmbeddingError API Error")
+            }
+            Self::UnknownError(other) => {
                 write!(f, "Unknown Error: {:?}", other)
             }
         }
@@ -60,7 +58,7 @@ pub struct ChatError {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct EditError {}
+pub struct EmbeddingError {}
 
 // #[derive(Error, Debug)]
 // pub enum GPTError {

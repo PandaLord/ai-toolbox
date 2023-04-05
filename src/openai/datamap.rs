@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Serialize)]
+#[derive(Default, Serialize, Debug, Deserialize)]
 pub enum Model {
     // gpt 3.5 turbo model
     #[default]
@@ -10,6 +12,13 @@ pub enum Model {
     // GPT turbo 0301 model
     #[serde(rename = "gpt-3.5-turbo-0301")]
     Gpt35Turbo0301,
+
+    // Text Embedding Ada 002
+    #[serde(rename = "text-embedding-ada-002")]
+    Ada002,
+    // Text Embedding Ada 002 v2
+    #[serde(rename = "text-embedding-ada-002-v2")]
+    Ada002V2,
 }
 
 #[derive(Debug, Deserialize)]
@@ -80,6 +89,8 @@ pub struct Usage {
     pub prompt_tokens: i32,
 
     /// how many tokens were used for the chat completion.
+    
+    #[serde(skip_deserializing)]
     pub completion_tokens: i32,
 
     /// how many tokens were used for the entire request.
@@ -130,4 +141,37 @@ pub struct PermissionData {
     pub allow_sampling: bool,
     pub allow_search_indices: bool,
     pub allow_view: bool,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct EmbeddingPayload {
+    pub model: Model,
+    pub input: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EmbeddingResponse {
+    pub object: String,
+    pub data: Vec<EmbeddingData>,
+    pub model: Model,
+    pub usage: Usage,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingData {
+    pub object: String,
+    pub embedding: Vec<f32>,
+    pub index: u32,
+}
+
+impl Display for ChatResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut content = "".to_string();
+        for data in &self.choices {
+            content += data.message.content.as_str();
+        }
+        write!(f, "{}", content)
+    }
 }
