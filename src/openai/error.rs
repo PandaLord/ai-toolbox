@@ -58,7 +58,7 @@ pub struct ChatError {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct EmbeddingError {}
+pub struct EmbeddingError;
 
 // #[derive(Error, Debug)]
 // pub enum GPTError {

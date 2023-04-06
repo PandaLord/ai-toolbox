@@ -4,4 +4,4 @@ Cargo.lock
 /.devcontainer
 /init
 /assets
-test.json
+test

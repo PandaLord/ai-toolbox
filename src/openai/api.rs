@@ -3,10 +3,11 @@ use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE},
     Client,
 };
-use std::{collections::HashMap, fs};
+use std::collections::HashMap;
 
 use crate::{
     datamap::{EmbeddingPayload, EmbeddingResponse},
+    error::GPTError,
     openai::error::{Error, GPTErrorResponse},
 };
 
@@ -17,6 +18,7 @@ use super::{
 };
 
 // abstract Api struct to call different apis
+#[derive(Debug)]
 pub struct Api {
     organization_id: Option<String>,
     client: Client,
@@ -112,7 +114,7 @@ impl Api {
             Err(Error::ApiError(err))
         }
     }
-
+    // TODO: Batch Embedding
     pub async fn embedding(&self, payload: &EmbeddingPayload) -> ApiResult<EmbeddingResponse> {
         const CHAT_API_KEY: &str = "createEmbedding";
         let url = format!(
@@ -121,7 +123,6 @@ impl Api {
             self.api_dict.get(CHAT_API_KEY).unwrap()
         );
         let res = self.client.post(&url).json(payload);
-        // println!("test: {:?}, {:?}", res, serde_json::to_string(payload));
         let res = if let Some(organization_id) = &self.organization_id {
             res.header("OpenAI-Organization", organization_id)
         } else {
@@ -135,9 +136,11 @@ impl Api {
             let res = res.json::<EmbeddingResponse>().await?;
             Ok(res)
         } else {
-            // println!("err: {:?}", res);
-            let err = res.json::<crate::error::GPTError>().await?;
-            Err(Error::ApiError(GPTErrorResponse { error: err }))
+            println!("err: {:?}", res.text().await?);
+            // let err = res.json::<crate::error::GPTError>().await?;
+            Err(Error::ApiError(GPTErrorResponse {
+                error: GPTError::UnknownError("Error".to_string()),
+            }))
         }
     }
 }
@@ -204,7 +207,6 @@ mod api_test {
         // Call the embedding function
 
         // Check if the response has been successful
-        println!("test1: {:?}", res.data[0].embedding.len());
 
         Ok(())
     }

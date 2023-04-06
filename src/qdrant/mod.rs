@@ -4,19 +4,20 @@ use dotenv::dotenv;
 use qdrant_client::qdrant::vectors_config::Config;
 use qdrant_client::qdrant::with_payload_selector::SelectorOptions;
 use qdrant_client::qdrant::{
-    CollectionInfo, CollectionOperationResponse, CreateCollection, Filter, GetResponse,
-    ListCollectionsResponse, PointsOperationResponse, PointsSelector, ScrollPoints, ScrollResponse,
-    SearchPoints, SearchResponse, VectorParams, VectorsConfig, WithPayloadSelector,
+    CollectionInfo, CollectionOperationResponse, CreateCollection, Filter, ListCollectionsResponse,
+    PointsOperationResponse, PointsSelector, ScrollPoints, ScrollResponse, SearchPoints,
+    SearchResponse, VectorParams, VectorsConfig, WithPayloadSelector,
 };
 use qdrant_client::{prelude::*, qdrant};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::iter::zip;
 use uuid::Uuid;
 pub struct QdrantDb {
     client: QdrantClient,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct PointMetadata {
     pub conversation_id: Uuid,
     pub raw_content: String,
@@ -32,6 +33,7 @@ impl From<PointMetadata> for Payload {
             metadata.conversation_id.to_string().into(),
         );
         payload.insert("raw_content", metadata.raw_content.into());
+        payload.insert("book_id", metadata.book_id.unwrap().to_string().into());
         payload.into()
     }
 }
@@ -90,21 +92,25 @@ impl QdrantDb {
     }
 
     // create a qdrant client and upsert a vector.
-    pub async fn upsert_qdrant(
+    pub async fn upsert_points(
         &self,
-        data: &EmbeddingData,
+        data: Vec<EmbeddingData>,
         collection_name: impl ToString,
-        payload: PointMetadata,
+        payload: Vec<PointMetadata>,
     ) -> Result<PointsOperationResponse> {
         // payload is a metadata which can be bind with points vectors.
         // here we use this to bind our conversation id and other metadata further(like)
-        let payload: Payload = payload.into();
-
-        let points = vec![PointStruct::new(
-            Uuid::new_v4().to_string(),
-            data.embedding.clone(),
-            payload,
-        )];
+        // let payload: Payload = payload.into();
+        let mix_data = zip(data, payload);
+        let points = mix_data
+            .map(|(data, payload)| {
+                PointStruct::new(
+                    Uuid::new_v4().to_string(),
+                    data.embedding.clone(),
+                    payload.into(),
+                )
+            })
+            .collect();
 
         let res = self
             .client
@@ -120,6 +126,9 @@ impl QdrantDb {
             .scroll(&ScrollPoints {
                 collection_name: collection_name.to_string(),
                 limit: Some(100),
+                with_payload: Some(WithPayloadSelector {
+                    selector_options: Some(SelectorOptions::Enable(true)),
+                }),
                 ..Default::default()
             })
             .await?;
@@ -165,7 +174,7 @@ impl QdrantDb {
                 collection_name: collection_name.to_string(),
                 vector: data.embedding.clone(),
                 filter: Some(filter),
-                limit: 10,
+                limit: 5,
                 with_vectors: None,
                 with_payload: Some(WithPayloadSelector {
                     selector_options: Some(SelectorOptions::Enable(true)),
@@ -191,7 +200,7 @@ mod db {
     use anyhow::Result;
     use qdrant_client::qdrant::r#match::MatchValue;
     use qdrant_client::qdrant::value::Kind;
-    use qdrant_client::qdrant::{Condition, FieldCondition, Match, ScoredPoint};
+    use qdrant_client::qdrant::{FieldCondition, Match};
     use std::env;
     use uuid::Uuid;
     #[tokio::test]
@@ -249,12 +258,13 @@ mod db {
         let payload = PointMetadata {
             conversation_id: u_id.clone(),
             raw_content: payload.input,
+            ..Default::default()
         };
 
         let collection_name = "gpt_embeddings";
-        let embedding_data = res.data.get(0).unwrap();
+        let embedding_data = res.data;
         let response = qdrant
-            .upsert_qdrant(embedding_data, collection_name, payload)
+            .upsert_points(embedding_data, collection_name, vec![payload])
             .await?;
 
         println!("response: {:?}", response);
@@ -325,8 +335,7 @@ mod db {
         let token = Token::new(api_secret);
         let request = Api::new(token);
 
-        let first_raw_content: String =
-            "i like Steve Jobs.".to_string();
+        let first_raw_content: String = "i like Steve Jobs.".to_string();
         // first chat to setup the context
         // chat payload
         let msg: Message = Message {
@@ -357,13 +366,14 @@ mod db {
         let payload = PointMetadata {
             conversation_id: u_id.clone(),
             raw_content: payload.input,
+            ..Default::default()
         };
 
         let collection_name = "gpt_embeddings";
-        let embedding_data = res_embedding.data.get(0).unwrap();
+        let embedding_data = res_embedding.data;
 
         let response = qdrant
-            .upsert_qdrant(embedding_data, collection_name, payload)
+            .upsert_points(embedding_data, collection_name, vec![payload])
             .await?;
         println!("first question storage: {:?}", response);
 
@@ -419,7 +429,11 @@ mod db {
             })
             .collect();
         println!("second question context: {:?}", &context);
-        let second_raw_content = "previous context: ".to_string() + context.join("").as_str() + "\n" + "now: " + second_raw_content;
+        let second_raw_content = "previous context: ".to_string()
+            + context.join("").as_str()
+            + "\n"
+            + "now: "
+            + second_raw_content;
 
         println!("second question: {:?}", &second_raw_content);
         // second chat to setup the context
