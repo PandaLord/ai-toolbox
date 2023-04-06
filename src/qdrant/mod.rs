@@ -12,7 +12,10 @@ use qdrant_client::{prelude::*, qdrant};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::zip;
+use std::sync::{Arc, Mutex};
+use tracing::info;
 use uuid::Uuid;
+
 pub struct QdrantDb {
     client: QdrantClient,
 }
@@ -33,7 +36,9 @@ impl From<PointMetadata> for Payload {
             metadata.conversation_id.to_string().into(),
         );
         payload.insert("raw_content", metadata.raw_content.into());
-        payload.insert("book_id", metadata.book_id.unwrap().to_string().into());
+        if metadata.book_id.is_some() {
+            payload.insert("book_id", metadata.book_id.unwrap().to_string().into());
+        }
         payload.into()
     }
 }
@@ -97,12 +102,12 @@ impl QdrantDb {
         data: Vec<EmbeddingData>,
         collection_name: impl ToString,
         payload: Vec<PointMetadata>,
-    ) -> Result<PointsOperationResponse> {
+    ) -> Result<()> {
         // payload is a metadata which can be bind with points vectors.
         // here we use this to bind our conversation id and other metadata further(like)
         // let payload: Payload = payload.into();
         let mix_data = zip(data, payload);
-        let points = mix_data
+        let points: Vec<PointStruct> = mix_data
             .map(|(data, payload)| {
                 PointStruct::new(
                     Uuid::new_v4().to_string(),
@@ -111,13 +116,24 @@ impl QdrantDb {
                 )
             })
             .collect();
-
-        let res = self
-            .client
-            .upsert_points(collection_name, points, None)
-            .await?;
-
-        Ok(res)
+        let total_count = points.len().to_owned();
+        info!("analysing points, first one: {:?}", &points[0]);
+        // let total_count = **con_points.len();
+        info!(
+            "start upserting embedding to qdrant, request counts: {}",
+            total_count
+        );
+        let chunks_size = 40;
+        for slice in points.chunks(total_count / chunks_size) {
+            self.client
+                .upsert_points(collection_name.to_string(), slice.to_vec(), None)
+                .await?;
+        }
+        // self
+        //     .client
+        //     .upsert_points(collection_name, points, None)
+        //     .await?;
+        Ok(())
     }
     // retrieve all points
     pub async fn retrieve_points(&self, collection_name: impl ToString) -> Result<ScrollResponse> {
@@ -174,7 +190,7 @@ impl QdrantDb {
                 collection_name: collection_name.to_string(),
                 vector: data.embedding.clone(),
                 filter: Some(filter),
-                limit: 5,
+                limit: 15,
                 with_vectors: None,
                 with_payload: Some(WithPayloadSelector {
                     selector_options: Some(SelectorOptions::Enable(true)),

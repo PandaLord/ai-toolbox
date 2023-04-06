@@ -18,7 +18,7 @@ use super::{
 };
 
 // abstract Api struct to call different apis
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Api {
     organization_id: Option<String>,
     client: Client,

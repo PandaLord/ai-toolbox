@@ -5,6 +5,7 @@ use std::{
     io::{BufRead, BufReader, Read},
     iter::zip,
     path::Path,
+    sync::{atomic::AtomicU32, Arc, Mutex},
 };
 
 use crate::{
@@ -19,6 +20,7 @@ use dotenv::dotenv;
 use encoding_rs::Encoding;
 use qdrant_client::qdrant::{r#match::MatchValue, value::Kind, FieldCondition, Filter, Match};
 use serde::{Deserialize, Serialize};
+use tokio::runtime::Runtime;
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 #[derive(Default, Serialize, Deserialize)]
@@ -154,23 +156,41 @@ impl Book {
             })
             .collect();
 
-        let mut embedding_vector: Vec<EmbeddingData> = vec![];
+        let mut embedding_vector: Arc<Mutex<Vec<EmbeddingData>>> = Arc::new(Mutex::new(vec![]));
         let total_count = embedding_payloads.len();
-        info!("start getting embedding from openai, request counts: {}", total_count);
-        let mut count = 0;
-        // TODO: need to use concurrency
+        info!(
+            "start getting embedding from openai, request counts: {}",
+            total_count
+        );
+        let mut handles = Vec::new();
+        let count: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
         for payload in embedding_payloads {
-            let res = self._api_client.as_ref().unwrap().embedding(&payload).await;
-            match res {
-                Ok(res) => {
-                    count += 1;
-                    info!("embedding count: {}, left: {}", count, total_count - count);
-                    embedding_vector.push(res.data[0].clone());
-                },
-                Err(e) => {
-                    panic!("embedding error: {:?}", e);
+            let client = self._api_client.as_ref().unwrap().to_owned();
+            let embedding_vector = Arc::clone(&embedding_vector);
+            let count = Arc::clone(&count);
+            let handle = tokio::spawn(async move {
+                let res = client.embedding(&payload).await;
+                match res {
+                    Ok(res) => {
+                        let mut count = count.lock().unwrap();
+                        *count += 1;
+                        info!(
+                            "embedding count: {}, left: {}",
+                            count,
+                            total_count as i32 - *count
+                        );
+                        let mut embedding_vector = embedding_vector.lock().unwrap();
+                        embedding_vector.push(res.data[0].clone());
+                    }
+                    Err(e) => {
+                        panic!("embedding error: {:?}", e);
+                    }
                 }
-            }
+            });
+            handles.push(handle);
+        }
+        for handle in handles {
+            handle.await?;
         }
         info!("Finished pushing embedding from openai..");
 
@@ -182,6 +202,16 @@ impl Book {
         //         .await?;
         // }
         info!("Start upserting points to qdrant..");
+        let embedding_vector = Arc::try_unwrap(embedding_vector)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+
+        info!(
+            "embedding vector len: {}, metadata_vec: {}",
+            embedding_vector.len(),
+            metadata_vec.len()
+        );
         self._qdrant_client
             .as_ref()
             .unwrap()
@@ -225,7 +255,7 @@ impl Book {
                 r#match: Some(Match {
                     // match_value: Some(MatchValue::Keyword(self.id.to_string())),
                     match_value: Some(MatchValue::Text(
-                        "a8e172cc-53b5-417d-8090-995e1808011f".to_string(),
+                        "c62f72fa-7f3c-448e-86b3-8436758b03ee".to_string(),
                     )),
                 }),
                 ..Default::default()
@@ -318,10 +348,10 @@ mod book {
     #[tokio::test]
     async fn test_txt_uplaod() {
         // embedding and chat should separate.
-        let mut book = Book::upload("assets/infscare.txt");
-        book.update_embedding().await.unwrap();
+        let mut book = Book::upload("assets/test.txt");
+        // book.update_embedding().await.unwrap();
         let res = book
-            .query_book_with_chat("中洲队有哪些成员?")
+            .query_book_with_chat("詹岚是一个什么样的人?")
             .await
             .unwrap();
         println!("res: {:?}", res);

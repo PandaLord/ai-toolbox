@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Serialize, Debug, Deserialize)]
+#[derive(Default, Serialize, Debug, Deserialize, Clone)]
 pub enum Model {
     // gpt 3.5 turbo model
     #[default]
@@ -143,7 +143,7 @@ pub struct PermissionData {
     pub allow_view: bool,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Default, Clone)]
 pub struct EmbeddingPayload {
     pub model: Model,
     pub input: String,
