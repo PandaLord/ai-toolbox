@@ -32,4 +32,5 @@ encoding_rs = "0.8.32"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 tracing-test = "0.2.4"
+futures = "0.3.28"
 

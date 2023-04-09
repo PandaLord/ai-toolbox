@@ -26,6 +26,7 @@ pub struct PointMetadata {
     pub raw_content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub book_id: Option<Uuid>,
+    pub token_count: i64,
 }
 
 impl From<PointMetadata> for Payload {
@@ -36,6 +37,7 @@ impl From<PointMetadata> for Payload {
             metadata.conversation_id.to_string().into(),
         );
         payload.insert("raw_content", metadata.raw_content.into());
+        payload.insert("token_count", metadata.token_count.into());
         if metadata.book_id.is_some() {
             payload.insert("book_id", metadata.book_id.unwrap().to_string().into());
         }
@@ -124,11 +126,19 @@ impl QdrantDb {
             total_count
         );
         let chunks_size = 40;
-        for slice in points.chunks(total_count / chunks_size) {
+        if total_count < chunks_size {
             self.client
-                .upsert_points(collection_name.to_string(), slice.to_vec(), None)
+                .upsert_points(collection_name.to_string(), points, None)
                 .await?;
+            return Ok(());
+        } else {
+            for slice in points.chunks(total_count / chunks_size) {
+                self.client
+                    .upsert_points(collection_name.to_string(), slice.to_vec(), None)
+                    .await?;
+            }
         }
+
         // self
         //     .client
         //     .upsert_points(collection_name, points, None)
@@ -178,6 +188,8 @@ impl QdrantDb {
         Ok(res)
     }
     // create a qdrant client and search a vector.
+
+    // TODO: resolve how may points should take as context
     pub async fn query_points(
         &self,
         collection_name: impl ToString,
@@ -190,7 +202,7 @@ impl QdrantDb {
                 collection_name: collection_name.to_string(),
                 vector: data.embedding.clone(),
                 filter: Some(filter),
-                limit: 15,
+                limit: 35,
                 with_vectors: None,
                 with_payload: Some(WithPayloadSelector {
                     selector_options: Some(SelectorOptions::Enable(true)),

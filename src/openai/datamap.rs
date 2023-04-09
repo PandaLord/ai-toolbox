@@ -1,6 +1,7 @@
-use std::fmt::Display;
+use std::{fmt::Display, collections::HashMap};
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 #[derive(Default, Serialize, Debug, Deserialize, Clone)]
 pub enum Model {
@@ -19,6 +20,15 @@ pub enum Model {
     // Text Embedding Ada 002 v2
     #[serde(rename = "text-embedding-ada-002-v2")]
     Ada002V2,
+
+    // text davinci 003
+    #[serde(rename = "text-davinci-003")]
+    Davinci003
+}
+
+pub enum ApiMethod {
+    GET,
+    POST
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,19 +92,19 @@ pub struct ChatPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 /// usage information for the OpenAI API.
 pub struct Usage {
     /// how many tokens were used for the prompt.
-    pub prompt_tokens: i32,
+    pub prompt_tokens: i64,
 
     /// how many tokens were used for the chat completion.
     
     #[serde(skip_deserializing)]
-    pub completion_tokens: i32,
+    pub completion_tokens: i64,
 
     /// how many tokens were used for the entire request.
-    pub total_tokens: i32,
+    pub total_tokens: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,6 +176,65 @@ pub struct EmbeddingData {
     pub index: u32,
 }
 
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct CompletionPayload {
+    pub model: Model,
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suffix: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub n: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub echo: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_of: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logit_bias: Option<HashMap<String, i32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct CompletionResponse {
+    /// ID of the request.
+    pub id: String,
+    pub object: String,
+
+    /// when the request was created.
+    pub created: i64,
+    pub model: Model,
+    /// list of chat completion choices.
+    pub choices: Vec<Choice>,
+
+    /// usage information for the request.
+    pub usage: Usage,
+}
+
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct CompletionData {
+//     pub object: String,
+//     pub embedding: Vec<f32>,
+//     pub index: u32,
+// }
+pub struct UsageReport(pub Vec<Usage>);
+
 impl Display for ChatResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut content = "".to_string();
@@ -173,5 +242,62 @@ impl Display for ChatResponse {
             content += data.message.content.as_str();
         }
         write!(f, "{}", content)
+    }
+}
+
+pub enum Response {
+    Chat(ChatResponse),
+    Embedding(EmbeddingResponse),
+    Completion(CompletionResponse),
+}
+
+pub trait ApiResponse {
+    fn log(&self) -> Usage;
+}
+// impl ApiResponse for ChatResponse {}
+// impl ApiResponse for EmbeddingResponse {}
+// impl ApiResponse for CompletionResponse {}
+
+pub trait ApiPayload {}
+impl ApiResponse for ChatResponse {
+    fn log(&self) -> Usage {
+        info!(
+            "Prompt Tokens: {}, Completion Tokens: {}, Total Tokens: {}",
+            self.usage.prompt_tokens,
+            self.usage.completion_tokens,
+            self.usage.total_tokens
+        );
+        self.usage.clone()
+
+    }
+}
+
+impl ApiResponse for EmbeddingResponse {
+    fn log(&self) -> Usage {
+        info!(
+            "Prompt Tokens: {}, Total Tokens: {}",
+            self.usage.prompt_tokens,
+            self.usage.total_tokens
+        );
+        self.usage.clone()
+    }
+}
+
+impl ApiResponse for CompletionResponse {
+    fn log(&self) -> Usage {
+        info!(
+            "Prompt Tokens: {}, Completion Tokens: {}, Total Tokens: {}",
+            self.usage.prompt_tokens,
+            self.usage.completion_tokens,
+            self.usage.total_tokens
+        );
+        self.usage.clone()
+    }
+}
+
+impl Display for UsageReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let total_tokens = self.0.iter().fold(0, |acc, x| acc + x.total_tokens);
+        write!(f, "total usage: {}, estimate cost: {}", total_tokens, total_tokens as f64 / 1000.0 * 0.0004)
     }
 }
