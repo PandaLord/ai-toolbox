@@ -33,13 +33,18 @@ pub enum ApiMethod {
 
 #[derive(Debug, Deserialize)]
 pub struct Choice {
-    /// Index of the message
+    // Index of the message
     pub index: u32,
 
-    /// text of chat completion
-    pub message: Message,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub logprobs: Option<u32>,
+    // text of chat completion
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub message: Option<Message>,
 
-    /// finish reason for the chat completion
+    // finish reason for the chat completion
     pub finish_reason: String,
 }
 
@@ -157,7 +162,7 @@ pub struct PermissionData {
 pub struct EmbeddingPayload {
     pub model: Model,
     pub input: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if="Option::is_none")]
     pub user: Option<String>,
 }
 
@@ -239,7 +244,7 @@ impl Display for ChatResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut content = "".to_string();
         for data in &self.choices {
-            content += data.message.content.as_str();
+            content += data.message.as_ref().unwrap().content.as_str();
         }
         write!(f, "{}", content)
     }
@@ -254,11 +259,8 @@ pub enum Response {
 pub trait ApiResponse {
     fn log(&self) -> Usage;
 }
-// impl ApiResponse for ChatResponse {}
-// impl ApiResponse for EmbeddingResponse {}
-// impl ApiResponse for CompletionResponse {}
-
 pub trait ApiPayload {}
+
 impl ApiResponse for ChatResponse {
     fn log(&self) -> Usage {
         info!(

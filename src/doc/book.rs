@@ -10,7 +10,8 @@ use std::{
 use crate::{
     api::Api,
     datamap::{
-        ChatPayload, EmbeddingData, EmbeddingPayload, Message, Model, Usage, ApiResponse, UsageReport,
+        ApiResponse, ChatPayload, ChatResponse, EmbeddingData, EmbeddingPayload, Message, Model,
+        Usage, UsageReport,
     },
     token::Token,
     PointMetadata, QdrantDb,
@@ -23,7 +24,9 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use uuid::Uuid;
 
-use tokio::sync::Semaphore;
+use tokio::sync::{futures::Notified, Notify, Semaphore};
+
+use super::datamap::SummaryAlgorithum;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Book {
@@ -94,32 +97,154 @@ impl Book {
             // let contents = String::from_utf8_lossy(&file_content).into_owned();
             let content_vec: Vec<String> =
                 utf8_content.split("\r\n").map(|e| e.to_string()).collect();
-            let fixed_len = 100;
+            let fixed_len = 1000;
             info!(
                 "Reading file contents, lens: {}, section size: {}",
                 utf8_content.len(),
                 fixed_len
             );
-            //
 
-            // let mut result = Vec::new();
-            // let mut buf = String::new();
-            // info!("Parsing...");
-            // for s in content_vec.iter() {
-            //     buf.push_str(s);
-            //     if buf.len() >= fixed_len {
-            //         result.push(buf.clone());
-            //         buf.clear();
-            //     }
-            // }
-            // if buf.len() > 0 {
-            //     result.push(buf.clone());
-            // }
+            // concat content
+            // do not cut the whole line
+            let mut result = Vec::new();
+            let mut buf = String::new();
+            info!("Parsing...");
+            for s in content_vec.iter() {
+                buf.push_str(s);
+                if buf.len() >= fixed_len {
+                    result.push(buf.clone());
+                    buf.clear();
+                }
+            }
+            if buf.len() > 0 {
+                result.push(buf.clone());
+            }
 
-            return Ok(content_vec);
+            return Ok(result);
         }
     }
 
+    async fn summarize_content(&mut self, algorithum: SummaryAlgorithum) {
+        self.init_all().await;
+        let total_count = self.content.len() as u32;
+        info!(
+            "Start Summarizing Content, total requests number: {}",
+            total_count
+        );
+
+        let count: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+        let content_vec: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+
+        let mut handles = vec![];
+        match algorithum {
+            SummaryAlgorithum::Stuff => (),
+            SummaryAlgorithum::MapReduce => {
+                for line in self.content.iter() {
+                    let client = self._api_client.as_ref().unwrap().to_owned();
+                    let content_vec = Arc::clone(&content_vec);
+                    let count = Arc::clone(&count);
+                    let msg: Message = Message {
+                        role: "user".to_string(),
+                        content: format!("总结以下: {}", line),
+                    };
+                    let chat_payload: ChatPayload = ChatPayload {
+                        model: Model::Gpt35Turbo,
+                        messages: vec![msg],
+                        temperature: Some(0.1),
+                        max_tokens: Some(256),
+                        ..Default::default()
+                    };
+
+                    let handle = tokio::spawn(async move {
+                        let res: ChatResponse = client.chat(chat_payload).await.unwrap();
+                        let mut content_vec = content_vec.lock().unwrap();
+                        let mut count = count.lock().unwrap();
+                        content_vec.push(res.to_string());
+                        *count += 1;
+
+                        info!(
+                            "Summarizing Content, content: {}, left number: {}",
+                            res.to_string(),
+                            total_count - *count
+                        );
+                    });
+                    handles.push(handle);
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+            }
+            SummaryAlgorithum::Refine => {
+                let notify = Arc::new(Notify::new());
+                for (index, line) in self.content.iter().enumerate() {
+                    let client = self._api_client.as_ref().unwrap().to_owned();
+                    let notify = notify.clone();
+                    let content_vec = Arc::clone(&content_vec);
+                    let count = Arc::clone(&count);
+
+                    if index != 0 && content_vec.lock().unwrap().get(index - 1).is_none() {
+                        notify.notified().await;
+                    }
+                    let msg: Message = Message {
+                        role: "user".to_string(),
+                        content: if index == 0 {
+                            format!(
+                                "总结以下内容,不要出现文字或内容等描述,用中文总结,: {}",
+                                line
+                            )
+                        } else {
+                            format!(
+                                "总结以下内容,不要出现文字或内容等描述,用中文总结: {}\r\n{}",
+                                content_vec.lock().unwrap().get(index - 1).unwrap(),
+                                line
+                            )
+                        },
+                    };
+                    let chat_payload: ChatPayload = ChatPayload {
+                        model: Model::Gpt35Turbo,
+                        messages: vec![msg],
+                        // temperature: Some(0.1),
+                        max_tokens: Some(2000),
+                        top_p: Some(0.2),
+                        presence_penalty: Some(0.1),
+                        frequency_penalty: Some(0.1),
+                        ..Default::default()
+                    };
+
+                    let handle = tokio::spawn(async move {
+                        let res: ChatResponse = client.chat(chat_payload).await.unwrap();
+                        let mut content_vec = content_vec.lock().unwrap();
+                        let mut count = count.lock().unwrap();
+                        content_vec.push(res.to_string());
+                        *count += 1;
+                        notify.notify_waiters();
+                        info!(
+                            "Summarizing Content, content: {}, left number: {}",
+                            res.to_string(),
+                            total_count - *count
+                        );
+                    });
+                    handles.push(handle);
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+            }
+        }
+        info!("handles assemble finished");
+        futures::future::join_all(handles).await;
+        info!("Finished pushing embedding from openai..");
+        let content_vec = Arc::try_unwrap(content_vec).unwrap().into_inner().unwrap();
+        self.content = content_vec;
+    }
+
+    async fn init_all(&mut self) {
+        if self._api_client.is_none() {
+            self.init_api();
+            info!("init Api Client");
+        }
+        // qdrant init
+        if self._qdrant_client.is_none() {
+            self.init_db().await;
+            info!("init Qdrant Client");
+        }
+    }
     pub fn init_api(&mut self) {
         dotenv().ok();
         let api_secret = env::var("GPT_TOKEN").unwrap_or("no GPT token".to_string());
@@ -137,16 +262,9 @@ impl Book {
     pub async fn update_embedding(&mut self) -> Result<()> {
         // chat init
         // Initialize an instance of the ChatClient
-        if self._api_client.is_none() {
-            self.init_api();
-            info!("init Api Client");
-        }
-        // qdrant init
-        if self._qdrant_client.is_none() {
-            self.init_db().await;
-            info!("init Qdrant Client");
-        }
+        self.init_all().await;
 
+        // init id
         let c_id = Uuid::new_v4();
 
         // Create an EmbeddingPayload object
@@ -317,7 +435,7 @@ impl Book {
             })
             .collect();
 
-        let f_question = "我会在接下来的内容中提供一份文章内容,请你仔细理解文章,我会基于文章内容向你提问,请你完全基于文章内容回答我,如果无法基于文章内容回答则回答无可奉告. 文章内容: ".to_string()
+        let f_question = "我会在接下来的内容中提供一份文章内容,请你仔细理解文章,我会基于文章内容向你提问,请你完全基于文章内容回答我.文章内容: ".to_string()
             + "'''"
             + context.join("").as_str()
             + "'''"
@@ -394,7 +512,10 @@ mod book {
         // book.update_embedding().await.unwrap();
         let res = book
             // .query_book_with_chat("这篇文章主要内容是什么", book.id.to_string())
-            .query_book_with_chat("这篇文章主要内容是什么", "b8506821-2b49-4b8e-886e-c10abd71f496".to_string())
+            .query_book_with_chat(
+                "狄云有什么本领?",
+                "7a3cb4f4-688a-4859-b007-0a612a33fcb1".to_string(),
+            )
             .await
             .unwrap();
         println!("res: {:?}", res);
@@ -405,7 +526,9 @@ mod book {
     async fn test_embedding() {
         // 连城诀 - ddbea9ad-bed2-4dd9-a8c2-16997828ddf9
         // 射雕英雄传 - ab678c31-032a-4d5e-b609-aa3599d061e6
-        let mut book = Book::upload("assets/射雕英雄传.txt");
-        book.update_embedding().await.unwrap();
+        let mut book = Book::upload("assets/test.txt");
+        // pre summarized content
+        // book.summarize_content(SummaryAlgorithum::Refine).await;
+        // book.update_embedding().await.unwrap();
     }
 }

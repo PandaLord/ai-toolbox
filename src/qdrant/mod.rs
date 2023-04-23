@@ -202,7 +202,7 @@ impl QdrantDb {
                 collection_name: collection_name.to_string(),
                 vector: data.embedding.clone(),
                 filter: Some(filter),
-                limit: 35,
+                limit: 20,
                 with_vectors: None,
                 with_payload: Some(WithPayloadSelector {
                     selector_options: Some(SelectorOptions::Enable(true)),
